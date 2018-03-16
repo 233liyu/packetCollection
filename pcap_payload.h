@@ -70,10 +70,18 @@ struct ipv6_header{
     u_char ip_tcdfl;                /* traffic class 4 bits + flow label*/
     u_short ip_flowlable;           /* flow label*/
     u_short ip_pllength;            /* payload length*/
-    u_char ip_nextHeader;
+    u_char ip_nextHeader;			/* next header 8 bits, tells the protocols or extension headers*/
     u_char ip_hplimit;
     struct in6_addr ip_src,ip_dst;
 };
+
+
+#define LY_TCP 0
+#define LY_UDP 1
+
+#define LY_ipv4 0
+#define LY_ipv6 1
+
 
 /* TCP header */
 typedef u_int tcp_seq;
@@ -90,14 +98,46 @@ struct TCP_header {
     u_short th_urp;                 /* urgent pointer */
 };
 
+/*
+ * UDP headers
+ * */
+struct UDP_header{
+	u_short src_port;				/* source port */
+	u_short dst_port;				/* destination port*/
+	u_short total_length;			/* total length of the UDP, >= 8bytes*/
+	u_short sum;					/* check sum*/
+};
 
+/*
+ * a struct combined with source port and destination port
+ * */
+struct bw_port{
+	u_short src_port;
+	u_short des_port;
+};
 /*
  * functions :
  * */
 
 
-void print_payload(u_char *payload, int len);
+void print_payload(const u_char * payload, int len);
 
 void print_hex_ascii_line(const u_char *payload, int len, int offset);
 
 int ip_version(u_char * packet);
+
+int ip_header_size(u_char * packet);
+
+int ip_protocol(u_char * ip_packet);
+
+void print_ip_add(u_char * ip_packet);
+
+void print_ports(u_char * tu_header);
+
+void get_port(u_char * header, struct bw_port * ports);
+
+int TCP_header_size(struct TCP_header * header);
+
+int TCP_payload_size(u_char * ip);
+
+int UDP_payload_size(u_char * ip);

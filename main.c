@@ -61,15 +61,11 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     /* declare pointers to packet headers */
     const struct sniff_ethernet *ethernet;  /* The ethernet header [1] */
     const struct ipv4_header *ip;              /* The IP header */
-    const struct ipv6_header *ip6;
     const struct TCP_header *tcp;            /* The TCP header */
     const char *payload;                    /* Packet payload */
 
-    int size_ip;
-    int size_tcp;
-    int size_payload;
 
-    printf("\nPacket number %d:\n", count);
+    printf("\n\nPacket number %d:\n", count);
     count++;
 
     /* define ethernet header */
@@ -78,67 +74,72 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     /* define/compute ip header offset */
     ip = (struct ipv4_header *) (packet + SIZE_ETHERNET);
 
-	ip_version((u_char *)(packet + SIZE_ETHERNET));
+	/* define the version of the ip */
+	int IP_version = ip_version((u_char *) ip);
+	switch (IP_version){
+		case LY_ipv4:
+		case LY_ipv6:
+			print_ip_add((u_char *) ip);
+			break;
+		default:
+			printf("error: cannot read the version of the packet!");
+			return;
+	}
 
-//    size_ip = IP_HL(ip) * 4;
-    size_ip = (ip->ip_vhl & 0x0f) * 4;
+	int ip_hsize = ip_header_size((u_char * ) (ip));
 
-    if (size_ip < 20) {
-        printf("   * Invalid IP header length: %u bytes\n", size_ip);
-        return;
-    }
+	if(ip_hsize == 0){
+		// if the ip header length is not valid
+		printf("error: ip header error! ");
+		return;
+	}
 
-    /* print source and destination IP addresses */
-    printf("       From: %s\n", inet_ntoa(ip->ip_src));
-    printf("         To: %s\n", inet_ntoa(ip->ip_dst));
+//	---------- debug -----
+	struct ipv6_header * i6 = (struct ipv6_header *) ip;
+	switch (IP_version){
+		case LY_ipv4:
+			printf("ip total length: %d\n", ntohs(ip->ip_len));
+			break;
+		case LY_ipv6:
+			printf("ip6 paylaod length: %d\n", ntohs(i6->ip_pllength));
+			break;
+	}
+//	----------------------
 
-    /* determine protocol */
-    switch (ip->ip_p) {
-        case IPPROTO_TCP:
-            printf("   Protocol: TCP\n");
-            break;
-        case IPPROTO_UDP:
-            printf("   Protocol: UDP\n");
-            return;
-        case IPPROTO_ICMP:
-            printf("   Protocol: ICMP\n");
-            return;
-        case IPPROTO_IP:
-            printf("   Protocol: IP\n");
-            return;
-        default:
-            printf("   Protocol: unknown\n");
-            return;
-    }
+	int payload_size = 0;
+	int tu_header_size = 0;
 
-    /*
-     *  OK, this packet is TCP.
-     */
+	switch (ip_protocol((u_char *) ip)){
+		case LY_TCP:
+			payload_size = TCP_payload_size((u_char *)ip);
+			printf("TCP payload size : %d\n", payload_size);
+			tu_header_size = TCP_header_size((struct TCP_header *) (ip + ip_hsize));
+			print_ports((u_char *) (ip + ip_hsize));
+			break;
+		case LY_UDP:
+			payload_size = UDP_payload_size((u_char *)ip);
+			printf("UDP payload size : %d\n", payload_size);
+			tu_header_size = 8;
+			print_ports((u_char *) (ip + ip_hsize));
+			break;
+		default:
+			// do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
+			printf(" unknown protocol");
+			return;
+	}
 
-    /* define/compute tcp header offset */
-    tcp = (struct TCP_header *) (packet + SIZE_ETHERNET + size_ip);
-    size_tcp = TH_OFF(tcp) * 4;
-    if (size_tcp < 20) {
-        printf("   * Invalid TCP header length: %u bytes\n", size_tcp);
-        return;
-    }
-
-    printf("   Src port: %d\n", ntohs(tcp->th_sport));
-    printf("   Dst port: %d\n", ntohs(tcp->th_dport));
 
     /* define/compute tcp payload (segment) offset */
-    payload = (u_char *) (packet + SIZE_ETHERNET + size_ip + size_tcp);
+    payload = (char *) (ip + ip_hsize + tu_header_size);
 
-    /* compute tcp payload (segment) size */
-    size_payload = ntohs(ip->ip_len) - (size_ip + size_tcp);
 
     /*
      * Print payload data; it might be binary, so don't just
      * treat it as a string.
      */
-    if (size_payload > 0) {
-        printf("   Payload (%d bytes):\n", size_payload);
-        print_payload(payload, size_payload);
+    if (payload_size > 0) {
+        printf("   Payload (%d bytes):\n", payload_size);
+//        print_payload((u_char *)payload, payload_size);
     }
 
     return;
@@ -150,7 +151,7 @@ int main(int argc, char **argv) {
     char errbuf[PCAP_ERRBUF_SIZE];        /* error buffer */
     pcap_t *handle;                /* packet capture handle */
 
-    char filter_exp[] = "ip or ip6";        /* filter expression [3] */
+    char filter_exp[] = "ip6";        /* filter expression [3] */
 
     struct bpf_program fp;            /* compiled filter program (expression) */
     bpf_u_int32 mask;            /* subnet mask */

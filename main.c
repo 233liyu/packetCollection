@@ -94,17 +94,6 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 		return;
 	}
 
-//	---------- debug -----
-	struct ipv6_header * i6 = (struct ipv6_header *) ip;
-	switch (IP_version){
-		case LY_ipv4:
-			printf("ip total length: %d\n", ntohs(ip->ip_len));
-			break;
-		case LY_ipv6:
-			printf("ip6 paylaod length: %d\n", ntohs(i6->ip_pllength));
-			break;
-	}
-//	----------------------
 
 	int payload_size = 0;
 	int tu_header_size = 0;
@@ -113,14 +102,23 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 		case LY_TCP:
 			payload_size = TCP_payload_size((u_char *)ip);
 			printf("TCP payload size : %d\n", payload_size);
-			tu_header_size = TCP_header_size((struct TCP_header *) (ip + ip_hsize));
-			print_ports((u_char *) (ip + ip_hsize));
+			tu_header_size = TCP_header_size((u_char*)(packet + SIZE_ETHERNET + ip_hsize));
+			printf("TCP header length :  %d\n", tu_header_size);
+			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+
+			tcp = (struct TCP_header *)(packet + SIZE_ETHERNET + ip_hsize);
+
+			if (tu_header_size < 20) {
+				printf("   * Invalid TCP header length: %u bytes\n", tu_header_size);
+				return;
+			}
+
 			break;
 		case LY_UDP:
 			payload_size = UDP_payload_size((u_char *)ip);
 			printf("UDP payload size : %d\n", payload_size);
 			tu_header_size = 8;
-			print_ports((u_char *) (ip + ip_hsize));
+			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
 			break;
 		default:
 			// do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
@@ -130,7 +128,7 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 
 
     /* define/compute tcp payload (segment) offset */
-    payload = (char *) (ip + ip_hsize + tu_header_size);
+    payload = (char *) (packet + SIZE_ETHERNET + ip_hsize + tu_header_size);
 
 
     /*
@@ -139,7 +137,7 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
      */
     if (payload_size > 0) {
         printf("   Payload (%d bytes):\n", payload_size);
-//        print_payload((u_char *)payload, payload_size);
+//		print_payload((u_char *)payload, payload_size);
     }
 
     return;
@@ -151,7 +149,7 @@ int main(int argc, char **argv) {
     char errbuf[PCAP_ERRBUF_SIZE];        /* error buffer */
     pcap_t *handle;                /* packet capture handle */
 
-    char filter_exp[] = "ip6";        /* filter expression [3] */
+    char filter_exp[] = "ip or ip6";        /* filter expression [3] */
 
     struct bpf_program fp;            /* compiled filter program (expression) */
     bpf_u_int32 mask;            /* subnet mask */

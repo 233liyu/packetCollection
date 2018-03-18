@@ -136,7 +136,7 @@ void print_ports(u_char * tu_header);
 
 void get_port(u_char * header, struct bw_port * ports);
 
-int TCP_header_size(struct TCP_header * header);
+int TCP_header_size(u_char * header);
 
 int TCP_payload_size(u_char * ip);
 

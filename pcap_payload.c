@@ -114,7 +114,7 @@ int ip_version(u_char * packet){
 	} else if (version == 0x60){
 		return LY_ipv6;
 	} else {
-		printf("version error");
+		printf("version error\n");
 	}
 	return -1;
 }
@@ -201,7 +201,7 @@ int ip_protocol(u_char * ip_packet){
 void print_ip_add(u_char * ip_packet){
 	struct ipv4_header * ipv4 = NULL;
 	struct ipv6_header * ipv6 = NULL;
-	char str[50] = "";
+	char str[255] = "";
 	switch (ip_version(ip_packet)){
 		case LY_ipv4:
 			ipv4 = (struct ipv4_header *)ip_packet;
@@ -243,9 +243,11 @@ void get_port(u_char * header, struct bw_port * ports){
 /*
  * compute the size of the TCP header, UDP header size is fixed 8 bytes
  * */
-int TCP_header_size(struct TCP_header * header){
-	int size = 4 * ((header->th_offx2 & 0xf0) >> 4);
-	return  size > 20 ? size : 0;
+int TCP_header_size(u_char * header){
+	int size = 0;
+	struct TCP_header * h1 = (struct TCP_header *)header;
+	size = TH_OFF(h1) * 4;
+	return  size;
 }
 
 /*
@@ -255,11 +257,11 @@ int TCP_payload_size(u_char * ip){
 	int ip_hsize = ip_header_size(ip);
 	int version = ip_version(ip);
 
-	if(version == LY_ipv4){
+	if(version == LY_ipv4){\
 		struct ipv4_header * ih4 = (struct ipv4_header *)ip;
 
 		int ip_tsize = ntohs(ih4->ip_len);
-		int tcp_hsize = TCP_header_size((struct TCP_header *) (ip + ip_hsize));
+		int tcp_hsize = TCP_header_size(ip + ip_hsize);
 		if (tcp_hsize == 0){
 			// tcp header error
 			return 0;
@@ -270,7 +272,7 @@ int TCP_payload_size(u_char * ip){
 	} else if (version == LY_ipv6){
 		struct ipv6_header * ih6 = (struct ipv6_header *)ip;
 		int ip_plsize = ntohs(ih6->ip_pllength);
-		int tcp_hsize = TCP_header_size((struct TCP_header *) (ip + ip_hsize));
+		int tcp_hsize = TCP_header_size(ip + ip_hsize);
 		if (tcp_hsize == 0){
 			// tcp header error
 			return 0;

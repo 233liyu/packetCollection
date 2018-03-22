@@ -257,7 +257,7 @@ int TCP_payload_size(u_char * ip){
 	int ip_hsize = ip_header_size(ip);
 	int version = ip_version(ip);
 
-	if(version == LY_ipv4){\
+	if(version == LY_ipv4){
 		struct ipv4_header * ih4 = (struct ipv4_header *)ip;
 
 		int ip_tsize = ntohs(ih4->ip_len);

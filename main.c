@@ -47,6 +47,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include "pcap_payload.h"
+#include "file_sys.h"
 
 
 void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
@@ -64,6 +65,12 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     const struct TCP_header *tcp;            /* The TCP header */
     const char *payload;                    /* Packet payload */
 
+	char src_ip[255] = "";
+	char dst_ip[255] = "";
+	const struct bw_port ports;
+
+	int protocol = 0;
+
 
     printf("\n\nPacket number %d:\n", count);
     count++;
@@ -76,10 +83,14 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 
 	/* define the version of the ip */
 	int IP_version = ip_version((u_char *) ip);
+
+	memset(src_ip,'\0', sizeof(src_ip));
+	memset(dst_ip,'\0', sizeof(dst_ip));
+
 	switch (IP_version){
 		case LY_ipv4:
 		case LY_ipv6:
-			print_ip_add((u_char *) ip);
+			print_ip_add((u_char *) ip, src_ip, dst_ip);
 			break;
 		default:
 			printf("error: cannot read the version of the packet!");
@@ -100,6 +111,7 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 
 	switch (ip_protocol((u_char *) ip)){
 		case LY_TCP:
+			protocol = LY_TCP;
 			payload_size = TCP_payload_size((u_char *)ip);
 			printf("TCP payload size : %d\n", payload_size);
 			tu_header_size = TCP_header_size((u_char*)(packet + SIZE_ETHERNET + ip_hsize));
@@ -112,13 +124,15 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 				printf("   * Invalid TCP header length: %u bytes\n", tu_header_size);
 				return;
 			}
-
+			get_port((u_char*)tcp,(struct bw_port *) &ports);
 			break;
 		case LY_UDP:
+			protocol = LY_UDP;
 			payload_size = UDP_payload_size((u_char *)ip);
 			printf("UDP payload size : %d\n", payload_size);
 			tu_header_size = 8;
 			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+			get_port((u_char*)(packet + SIZE_ETHERNET + ip_hsize),(struct bw_port *) &ports);
 			break;
 		default:
 			// do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
@@ -138,7 +152,10 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     if (payload_size > 0) {
         printf("   Payload (%d bytes):\n", payload_size);
 //		print_payload((u_char *)payload, payload_size);
+		write_to_file(src_ip,dst_ip,ports.src_port,ports.des_port,(char *)payload,payload_size,protocol);
     }
+
+
 
     return;
 }

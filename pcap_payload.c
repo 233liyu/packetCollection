@@ -198,7 +198,7 @@ int ip_protocol(u_char * ip_packet){
 	}
 }
 
-void print_ip_add(u_char * ip_packet){
+void print_ip_add(u_char * ip_packet, char * src_ip, char * dst_ip){
 	struct ipv4_header * ipv4 = NULL;
 	struct ipv6_header * ipv6 = NULL;
 	char str[255] = "";
@@ -206,17 +206,25 @@ void print_ip_add(u_char * ip_packet){
 		case LY_ipv4:
 			ipv4 = (struct ipv4_header *)ip_packet;
 			/* print source and destination IP addresses */
-			if(inet_ntop(AF_INET, &ipv4->ip_src, str, sizeof (str)))
+			if(inet_ntop(AF_INET, &ipv4->ip_src, str, sizeof (str))){
 				printf("       From: %s\n", str);
-			if(inet_ntop(AF_INET, &ipv4->ip_dst, str, sizeof (str)))
+				sprintf(src_ip,"%s",str);
+			}
+			if(inet_ntop(AF_INET, &ipv4->ip_dst, str, sizeof (str))){
 				printf("         To: %s\n", str);
+				sprintf(dst_ip,"%s",str);
+			}
 			break;
 		case LY_ipv6:
 			ipv6 = (struct ipv6_header *)ip_packet;
-			if(inet_ntop(AF_INET6, &ipv6->ip_src, str, sizeof (str)))
+			if(inet_ntop(AF_INET6, &ipv6->ip_src, str, sizeof (str))){
 				printf("       From: %s\n", str);
-			if(inet_ntop(AF_INET6, &ipv6->ip_dst, str, sizeof (str)))
+				sprintf(src_ip,"%s",str);
+			}
+			if(inet_ntop(AF_INET6, &ipv6->ip_dst, str, sizeof (str))){
 				printf("         To: %s\n", str);
+				sprintf(dst_ip,"%s",str);
+			}
 			break;
 		default:
 			break;

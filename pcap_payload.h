@@ -130,7 +130,7 @@ int ip_header_size(u_char * packet);
 
 int ip_protocol(u_char * ip_packet);
 
-void print_ip_add(u_char * ip_packet);
+void print_ip_add(u_char * ip_packet, char * src_ip, char * dst_ip);
 
 void print_ports(u_char * tu_header);
 

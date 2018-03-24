@@ -16,7 +16,11 @@
 const char file_path[] = "";
 
 const struct packet_total * queue_header = NULL;
-
+// queue mutex control the access of the queue
+pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+// cond
+pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t con_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
  * return current date in string format
@@ -70,6 +74,9 @@ void delete_node(struct packet_total * ptr){
 void add_node_to_queue(struct packet_total * node){
 	struct packet_total * ptr = NULL;
 
+	// lock the mutex to get access to the queue
+	pthread_mutex_lock(&queue_mutex);
+
 	ptr = (struct packet_total*) queue_header;
 	if (ptr != NULL){
 //		queue is not empty
@@ -77,10 +84,16 @@ void add_node_to_queue(struct packet_total * node){
 			ptr = ptr->next_node;
 		}
 		ptr->next_node = node;
+//		unlock the mutex
+		pthread_mutex_unlock(&queue_mutex);
+		pthread_cond_broadcast(&cond);
 		return;
 	} else {
 //		queue is empty
 		queue_header = node;
+//		unlock the mutex
+		pthread_mutex_unlock(&queue_mutex);
+		pthread_cond_broadcast(&cond);
 		return;
 	}
 
@@ -92,15 +105,16 @@ void add_node_to_queue(struct packet_total * node){
 struct packet_total * get_node_from_queue(){
 	struct packet_total * ptr = NULL;
 
+	pthread_mutex_lock(&queue_mutex);
 	ptr = (struct packet_total*) queue_header;
 	if (ptr != NULL){
 //		queue is not empty
 		queue_header = queue_header->next_node;
-		return ptr;
 	} else {
-//		queue is empty return null
-		return ptr;
+//		queue is empty, return null
 	}
+	pthread_mutex_unlock(&queue_mutex);
+	return ptr;
 }
 
 
@@ -125,14 +139,46 @@ void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_p
 	struct packet_total * ptr = init_node(src,dst,pl,length,protocol);
 
 	//add to queue;
-
-	delete_node(ptr);
+	add_node_to_queue(ptr);
+	printf("\nnode added!!!!!!\n");
 }
 
+
+// ============================= file writing  ======================================
 
 /*
  * initial the file system, basic set up for the thread control;
  * */
 void init_file_sys(){
+
+
 	return;
 }
+
+void * file_sys(void * arg){
+	printf("adadadada");
+	struct packet_total * ptr = NULL;
+	while (1){
+
+		pthread_cond_wait(&cond, &con_mutex);
+		ptr = get_node_from_queue();
+		if (ptr != NULL){
+			struct timespec tim, tim2;
+			tim.tv_sec  = 0;
+			tim.tv_nsec = 500000000L;
+
+			if(nanosleep(&tim , &tim2) < 0 )
+			{
+				printf("Nano sleep system call failed \n");
+				return NULL;
+			}
+			delete_node(ptr);
+			printf("node deleted===============\n");
+
+		}
+//		break;
+	}
+	return NULL;
+}
+
+

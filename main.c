@@ -46,6 +46,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <pthread.h>
 #include "pcap_payload.h"
 #include "file_sys.h"
 
@@ -230,11 +231,26 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+	pthread_t * file_thread_pool = NULL;
+	int thread_num = 4;
+	file_thread_pool = (pthread_t *) malloc(sizeof(pthread_t ) * thread_num);
+
+	for (int i = 0; i < thread_num; ++i) {
+		pthread_create(&file_thread_pool[i], NULL, file_sys, NULL);
+	}
+
+
     /* now we can set our callback function */
 //    pcap_loop(handle, num_packets, call_back, NULL);
     pcap_loop(handle, -1, call_back, NULL);
 
-    /* cleanup */
+
+	for (int j = 0; j < thread_num; ++j) {
+		pthread_join(file_thread_pool[j], NULL);
+	}
+
+
+	/* cleanup */
     pcap_freecode(&fp);
     pcap_close(handle);
 

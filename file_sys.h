@@ -24,3 +24,5 @@ struct packet_total{
 void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char * payload, int length, int protocol);
 
 void init_file_sys();
+
+void * file_sys(void * arg);

@@ -4,6 +4,7 @@
 
 #include <stdlib.h>
 #include <pthread.h>
+#include <unistd.h>
 #include "file_sys.h"
 #include "time.h"
 #include "stdio.h"
@@ -155,29 +156,49 @@ void init_file_sys(){
 	return;
 }
 
+
+/*
+ * get the name of the file
+ * create a unique file name for the grand use
+ * */
+void create_file_name(struct packet_total * ptr, char * bufffer, int size){
+
+//	"src-port*dst-port"
+
+}
+
+void write_file(struct packet_total * ptr){
+	FILE * fp = NULL;
+
+	access(file_path,F_OK);
+
+}
+
+
+/*
+ * the main thread of the file system
+ * cope with getting packet from the queue
+ * */
 void * file_sys(void * arg){
-	printf("adadadada");
 	struct packet_total * ptr = NULL;
 	while (1){
 
-		pthread_cond_wait(&cond, &con_mutex);
 		ptr = get_node_from_queue();
 		if (ptr != NULL){
-			struct timespec tim, tim2;
-			tim.tv_sec  = 0;
-			tim.tv_nsec = 500000000L;
 
-			if(nanosleep(&tim , &tim2) < 0 )
-			{
-				printf("Nano sleep system call failed \n");
-				return NULL;
-			}
+			write_file(ptr);
 			delete_node(ptr);
 			printf("node deleted===============\n");
-
+		} else {
+//			the queue is empty
+//			if wait for more than 1 second, thread will be waken
+			struct timespec tim;
+			tim.tv_sec  = 1;
+			tim.tv_nsec = 0;
+			pthread_cond_timedwait(&cond, &con_mutex, &tim);
 		}
-//		break;
 	}
+//		break
 	return NULL;
 }
 

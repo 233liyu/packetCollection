@@ -167,6 +167,10 @@ void create_file_name(struct packet_total * ptr, char * bufffer, int size){
 
 }
 
+void init_file(){
+    
+}
+
 void write_file(struct packet_total * ptr){
 	FILE * fp = NULL;
 

@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     char errbuf[PCAP_ERRBUF_SIZE];        /* error buffer */
     pcap_t *handle;                /* packet capture handle */
 
-    char filter_exp[] = "ip or ip6";        /* filter expression [3] */
+    char filter_exp[] = "ip6";        /* filter expression [3] */
 
     struct bpf_program fp;            /* compiled filter program (expression) */
     bpf_u_int32 mask;            /* subnet mask */
@@ -201,6 +201,7 @@ int main(int argc, char **argv) {
 
     /* print capture info */
     printf("Device: %s\n", dev);
+//    printf("local address: %s\n", )
     printf("Number of packets: %d\n", num_packets);
     printf("Filter expression: %s\n", filter_exp);
 
@@ -231,6 +232,10 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
+    /*
+     * set up the file writing thread
+     * start 4 threads by default
+     * */
 	pthread_t * file_thread_pool = NULL;
 	int thread_num = 4;
 	file_thread_pool = (pthread_t *) malloc(sizeof(pthread_t ) * thread_num);

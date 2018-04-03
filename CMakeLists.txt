@@ -7,7 +7,7 @@ include(FindPCAP.cmake)
 
 find_package( Threads )
 
-set(SOURCE_FILES main.c pcap_payload.c pcap_payload.h file_sys.c file_sys.h proc.c proc.h)
+set(SOURCE_FILES main.c pcap_payload.c pcap_payload.h file_sys.c file_sys.h proc.c proc.h khash.h)
 add_executable(libpcap ${SOURCE_FILES})
 
 target_link_libraries(libpcap ${CMAKE_THREAD_LIBS_INIT} )

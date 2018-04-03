@@ -2,7 +2,7 @@
 // Created by lee yu on 2018/3/22.
 //
 
-#include <ntsid.h>
+//
 
 #ifndef LIBPCAP_FILE_SYS_H
 #define LIBPCAP_FILE_SYS_H

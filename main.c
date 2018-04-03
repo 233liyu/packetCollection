@@ -66,11 +66,11 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     const struct TCP_header *tcp;            /* The TCP header */
     const char *payload;                    /* Packet payload */
 
-	char src_ip[255] = "";
-	char dst_ip[255] = "";
-	const struct bw_port ports;
+    char src_ip[255] = "";
+    char dst_ip[255] = "";
+    const struct bw_port ports;
 
-	int protocol = 0;
+    int protocol = 0;
 
 
     printf("\n\nPacket number %d:\n", count);
@@ -82,64 +82,64 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     /* define/compute ip header offset */
     ip = (struct ipv4_header *) (packet + SIZE_ETHERNET);
 
-	/* define the version of the ip */
-	int IP_version = ip_version((u_char *) ip);
+    /* define the version of the ip */
+    int IP_version = ip_version((u_char *) ip);
 
-	memset(src_ip,'\0', sizeof(src_ip));
-	memset(dst_ip,'\0', sizeof(dst_ip));
+    memset(src_ip, '\0', sizeof(src_ip));
+    memset(dst_ip, '\0', sizeof(dst_ip));
 
-	switch (IP_version){
-		case LY_ipv4:
-		case LY_ipv6:
-			print_ip_add((u_char *) ip, src_ip, dst_ip);
-			break;
-		default:
-			printf("error: cannot read the version of the packet!");
-			return;
-	}
+    switch (IP_version) {
+        case LY_ipv4:
+        case LY_ipv6:
+            print_ip_add((u_char *) ip, src_ip, dst_ip);
+            break;
+        default:
+            printf("error: cannot read the version of the packet!");
+            return;
+    }
 
-	int ip_hsize = ip_header_size((u_char * ) (ip));
+    int ip_hsize = ip_header_size((u_char *) (ip));
 
-	if(ip_hsize == 0){
-		// if the ip header length is not valid
-		printf("error: ip header error! ");
-		return;
-	}
+    if (ip_hsize == 0) {
+        // if the ip header length is not valid
+        printf("error: ip header error! ");
+        return;
+    }
 
 
-	int payload_size = 0;
-	int tu_header_size = 0;
+    int payload_size = 0;
+    int tu_header_size = 0;
 
-	switch (ip_protocol((u_char *) ip)){
-		case LY_TCP:
-			protocol = LY_TCP;
-			payload_size = TCP_payload_size((u_char *)ip);
-			printf("TCP payload size : %d\n", payload_size);
-			tu_header_size = TCP_header_size((u_char*)(packet + SIZE_ETHERNET + ip_hsize));
-			printf("TCP header length :  %d\n", tu_header_size);
-			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+    switch (ip_protocol((u_char *) ip)) {
+        case LY_TCP:
+            protocol = LY_TCP;
+            payload_size = TCP_payload_size((u_char *) ip);
+            printf("TCP payload size : %d\n", payload_size);
+            tu_header_size = TCP_header_size((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+            printf("TCP header length :  %d\n", tu_header_size);
+            print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
 
-			tcp = (struct TCP_header *)(packet + SIZE_ETHERNET + ip_hsize);
+            tcp = (struct TCP_header *) (packet + SIZE_ETHERNET + ip_hsize);
 
-			if (tu_header_size < 20) {
-				printf("   * Invalid TCP header length: %u bytes\n", tu_header_size);
-				return;
-			}
-			get_port((u_char*)tcp,(struct bw_port *) &ports);
-			break;
-		case LY_UDP:
-			protocol = LY_UDP;
-			payload_size = UDP_payload_size((u_char *)ip);
-			printf("UDP payload size : %d\n", payload_size);
-			tu_header_size = 8;
-			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
-			get_port((u_char*)(packet + SIZE_ETHERNET + ip_hsize),(struct bw_port *) &ports);
-			break;
-		default:
-			// do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
-			printf(" unknown protocol");
-			return;
-	}
+            if (tu_header_size < 20) {
+                printf("   * Invalid TCP header length: %u bytes\n", tu_header_size);
+                return;
+            }
+            get_port((u_char *) tcp, (struct bw_port *) &ports);
+            break;
+        case LY_UDP:
+            protocol = LY_UDP;
+            payload_size = UDP_payload_size((u_char *) ip);
+            printf("UDP payload size : %d\n", payload_size);
+            tu_header_size = 8;
+            print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+            get_port((u_char *) (packet + SIZE_ETHERNET + ip_hsize), (struct bw_port *) &ports);
+            break;
+        default:
+            // do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
+            printf(" unknown protocol");
+            return;
+    }
 
 
     /* define/compute tcp payload (segment) offset */
@@ -153,9 +153,9 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     if (payload_size > 0) {
         printf("   Payload (%d bytes):\n", payload_size);
 //		print_payload((u_char *)payload, payload_size);
-		write_to_file(src_ip,dst_ip,ports.src_port,ports.des_port,(char *)payload,payload_size,protocol);
+        write_to_file(src_ip, dst_ip, ports.src_port, ports.des_port, (char *) payload, payload_size, protocol,
+                      IP_version);
     }
-
 
 
     return;
@@ -172,7 +172,6 @@ int main(int argc, char **argv) {
     struct bpf_program fp;            /* compiled filter program (expression) */
     bpf_u_int32 mask;            /* subnet mask */
     bpf_u_int32 net;            /* ip */
-    int num_packets = 25;            /* number of packets to capture */
 
 
     /* check for capture device name on command-line */
@@ -201,8 +200,6 @@ int main(int argc, char **argv) {
 
     /* print capture info */
     printf("Device: %s\n", dev);
-//    printf("local address: %s\n", )
-    printf("Number of packets: %d\n", num_packets);
     printf("Filter expression: %s\n", filter_exp);
 
     /* open capture device */
@@ -236,26 +233,25 @@ int main(int argc, char **argv) {
      * set up the file writing thread
      * start 4 threads by default
      * */
-	pthread_t * file_thread_pool = NULL;
-	int thread_num = 4;
-	file_thread_pool = (pthread_t *) malloc(sizeof(pthread_t ) * thread_num);
+    pthread_t *file_thread_pool = NULL;
+    int thread_num = 4;
+    file_thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * thread_num);
 
-	for (int i = 0; i < thread_num; ++i) {
-		pthread_create(&file_thread_pool[i], NULL, file_sys, NULL);
-	}
+    for (int i = 0; i < thread_num; ++i) {
+        pthread_create(&file_thread_pool[i], NULL, file_sys, NULL);
+    }
 
 
     /* now we can set our callback function */
-//    pcap_loop(handle, num_packets, call_back, NULL);
     pcap_loop(handle, -1, call_back, NULL);
 
 
-	for (int j = 0; j < thread_num; ++j) {
-		pthread_join(file_thread_pool[j], NULL);
-	}
+    for (int j = 0; j < thread_num; ++j) {
+        pthread_join(file_thread_pool[j], NULL);
+    }
 
 
-	/* cleanup */
+    /* cleanup */
     pcap_freecode(&fp);
     pcap_close(handle);
 

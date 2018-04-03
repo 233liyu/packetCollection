@@ -13,15 +13,20 @@ struct packet_total{
 	// "ip.ip.ip.ip:port"
 	char * src_add;
 	char * dst_add;
-
+    //pay load content
 	char * payload;
+    // payload size
 	int length;
+    // TCP / UDP
 	int protocol;
+    // ipv4 / ipv6
+    int ip_version;
 
 	struct packet_total * next_node;
 };
 
-void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char * payload, int length, int protocol);
+void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char * payload, int length, int protocol,
+                   int ip_version);
 
 void init_file_sys();
 

@@ -56,7 +56,7 @@ int get_proc_info(char *ip_port_t, int ip_version, char *result) {
         char *ptr = strstr(ip_port, cc);
         if (ptr != NULL) {
             *ptr = ':';
-            sprintf(cmd_buffer, "lsof -i @%s\n", ip_port);
+            sprintf(cmd_buffer, "lsof -i @%s +c 0\n", ip_port);
         } else {
             printf("error: invalid ip format! %s\n", ip_port);
             return 1;
@@ -67,7 +67,7 @@ int get_proc_info(char *ip_port_t, int ip_version, char *result) {
         if (ptr != NULL) {
             *ptr = '\0';
             ptr++;
-            sprintf(cmd_buffer, "lsof -i @[%s]:%s\n", ip_port, ptr);
+            sprintf(cmd_buffer, "lsof -i @[%s]:%s +c 0\n", ip_port, ptr);
         } else {
             printf("error: invalid ip format! %s\n", ip_port);
             return 1;

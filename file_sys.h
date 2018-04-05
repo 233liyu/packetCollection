@@ -4,6 +4,8 @@
 
 //
 
+#include <ntsid.h>
+
 #ifndef LIBPCAP_FILE_SYS_H
 #define LIBPCAP_FILE_SYS_H
 

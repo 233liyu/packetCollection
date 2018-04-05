@@ -21,7 +21,7 @@
 /*
  * the father dic of all packet
  * */
-const char file_path[] = "/home/lee/Desktop/GP";
+const char file_path[] = "/Users/lee/Desktop/大四/毕业设计/GP_data";
 
 const struct packet_total *queue_header = NULL;
 // queue mutex control the access of the queue

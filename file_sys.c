@@ -5,17 +5,23 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <sys/stat.h>
 #include "file_sys.h"
-#include "time.h"
 #include "stdio.h"
 #include "string.h"
 #include "pcap_payload.h"
 #include "proc.h"
 
+
+#define LY_SRC = 0;
+#define LY_DST = 1;
+#define LY_BDC = 2;
+
+
 /*
  * the father dic of all packet
  * */
-const char file_path[] = "";
+const char file_path[] = "/home/lee/Desktop/GP";
 
 const struct packet_total *queue_header = NULL;
 // queue mutex control the access of the queue
@@ -163,26 +169,107 @@ void init_file_sys() {
  * get the name of the file
  * create a unique file name for the grand use
  * */
-void create_file_name(struct packet_total *ptr, char *bufffer, int size) {
-//	"src-port*dst-port"
+void create_file_name(struct packet_total *ptr, char *bufffer) {
+//	"src-port*dst-port*TCP"
+//   start with local address
+    if (is_local_ip(ptr->src_add)){
+//        if the local address is the source address
+        if (ptr->protocol == LY_TCP){
+            sprintf(bufffer,"%s*%s*TCP",ptr->src_add,ptr->dst_add);
+        } else {
+            sprintf(bufffer,"%s*%s*UDP",ptr->src_add,ptr->dst_add);
+        }
 
+    } else if (is_local_ip(ptr->dst_add)){
+//        if the local address is the destination address
+        if (ptr->protocol == LY_TCP){
+            sprintf(bufffer,"%s*%s*TCP",ptr->dst_add,ptr->src_add);
+        } else {
+            sprintf(bufffer,"%s*%s*UDP",ptr->dst_add,ptr->src_add);
+        }
+    } else {
+//        the packet is a broadcast message
+        if (ptr->protocol == LY_TCP){
+            sprintf(bufffer,"%s*%s*TCP",ptr->src_add,ptr->dst_add);
+        } else {
+            sprintf(bufffer,"%s*%s*UDP",ptr->src_add,ptr->dst_add);
+        }
+    }
+}
+
+void write_processInfo(char * file_name, char * ip_info, int ip_version){
+    char result [10240] = "";
+    char ip_port [1024] = "";
+    strcpy(ip_port, ip_info);
+    char * cc = strstr(ip_port,"*");
+    *cc = '\0';
+    get_proc_info(ip_port,ip_version,result);
+
+    FILE * fp = NULL;
+    fp = fopen(file_name,"w+");
+    if (fp == NULL){
+        printf("error create file %s\n", file_name);
+    } else {
+        fprintf(fp,"%s\n", result);
+        fclose(fp);
+    }
 }
 
 
-void init_file() {
+/*
+ * create file dic if needed
+ * create file if not exist
+ * */
+void init_file(struct packet_total *ptr, char * file_name) {
+
+    char name_buffer[1024] = "";
+    char total_buffer[2048] = "";
+    char date_buffer[50] = "";
+
+    create_file_name(ptr,name_buffer);
+    get_date(date_buffer);
+
+    sprintf(total_buffer,"%s/%s",file_path,date_buffer);
+    if (access(total_buffer,F_OK)){
+//        dic not exist!
+        if (mkdir(total_buffer,0777) == 0){
+            printf("dic %s created!\n", total_buffer);
+        } else {
+            printf("error creating file dic %s\n", total_buffer);
+        }
+    }
+
+    strcat(total_buffer,"/");
+    strcat(total_buffer,name_buffer);
+    strcpy(file_name,total_buffer);
+
+    if (access(total_buffer,F_OK)){
+//        file not exist!
+//        create file and write the process info
+        write_processInfo(total_buffer,name_buffer,ptr->ip_version);
+    }
 
 }
 
 void write_file(struct packet_total *ptr) {
-    FILE *fp = NULL;
-    char result[10240] = "";
 
-    if (is_local_ip(ptr->src_add)){
-        get_proc_info(ptr->src_add, ptr->ip_version, result);
-    } else if (is_local_ip(ptr->dst_add)){
-        get_proc_info(ptr->dst_add, ptr->ip_version, result);
+    char file_name[2048] = "";
+
+    init_file(ptr,file_name);
+
+    FILE * fp = NULL;
+    fp = fopen(file_name,"a+");
+    if (fp == NULL){
+        printf("error opening file %s\n", file_name);
+    } else {
+        fprintf(fp, "\nsrc: %s\tdst: %s\tpayload length:%d\n",ptr->src_add,ptr->dst_add,ptr->length);
+        u_char * ch = (u_char *)ptr->payload;
+        for (int j = 0; j < ptr->length; ++j) {
+            fprintf(fp, "%02x", *ch);
+            ch ++;
+        }
+        fclose(fp);
     }
-
 }
 
 

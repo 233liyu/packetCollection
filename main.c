@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
     char errbuf[PCAP_ERRBUF_SIZE];        /* error buffer */
     pcap_t *handle;                /* packet capture handle */
 
-    char filter_exp[] = "ip6";        /* filter expression [3] */
+    char filter_exp[] = "ip or ip6";        /* filter expression [3] */
 
     struct bpf_program fp;            /* compiled filter program (expression) */
     bpf_u_int32 mask;            /* subnet mask */
@@ -231,10 +231,13 @@ int main(int argc, char **argv) {
 
     /*
      * set up the file writing thread
-     * start 4 threads by default
+     * start 1 threads by default
+     *
+     * !!! DO NOT SUPPORT MORE THREAD IN CURRENT VERSION
+     *
      * */
     pthread_t *file_thread_pool = NULL;
-    int thread_num = 4;
+    int thread_num = 1;
     file_thread_pool = (pthread_t *) malloc(sizeof(pthread_t) * thread_num);
 
     for (int i = 0; i < thread_num; ++i) {

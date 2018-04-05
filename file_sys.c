@@ -143,7 +143,11 @@ write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, 
 
     char *pl = (char *) malloc(sizeof(char) * length);
     printf("length: %d\t, pl_length:%d\n", length, (int) sizeof(char) * length);
-    strncpy(pl, payload, (size_t) length);
+//    strncpy(pl, payload, (size_t) length);
+    for (int i = 0; i < length; ++i) {
+        char vc = payload[i];
+        pl[i] = vc;
+    }
 
     struct packet_total *ptr = init_node(src, dst, pl, length, protocol, ip_version);
 

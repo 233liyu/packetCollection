@@ -12,7 +12,6 @@
 #include "pcap_payload.h"
 #include "proc.h"
 
-
 #define LY_SRC = 0;
 #define LY_DST = 1;
 #define LY_BDC = 2;

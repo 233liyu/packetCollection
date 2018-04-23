@@ -4,7 +4,10 @@
 
 //
 
-#include <ntsid.h>
+#if defined(__APPLE__)
+    #include <ntsid.h>
+#endif
+
 
 #ifndef LIBPCAP_FILE_SYS_H
 #define LIBPCAP_FILE_SYS_H

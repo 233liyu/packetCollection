@@ -11,6 +11,7 @@
 #include "string.h"
 #include "pcap_payload.h"
 #include "proc.h"
+#include "libndpi-2.3.0/libndpi/ndpi_api.h"
 
 #define LY_SRC = 0;
 #define LY_DST = 1;
@@ -20,7 +21,7 @@
 /*
  * the father dic of all packet
  * */
-const char file_path[] = "/Users/lee/Desktop/大四/毕业设计/GP_data";
+const char file_path[] = "/home/lee/Desktop/GP";
 
 const struct packet_total *queue_header = NULL;
 // queue mutex control the access of the queue

@@ -153,8 +153,8 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     if (payload_size > 0) {
         printf("   Payload (%d bytes):\n", payload_size);
 //		print_payload((u_char *)payload, payload_size);
-        write_to_file(src_ip, dst_ip, ports.src_port, ports.des_port, (char *) payload, payload_size, protocol,
-                      IP_version);
+        write_to_file(src_ip, dst_ip, ports.src_port, ports.des_port, (char *) packet, payload_size, protocol,
+                      IP_version, SIZE_ETHERNET + ip_hsize + tu_header_size);
     }
 
 

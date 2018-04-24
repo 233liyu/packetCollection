@@ -11,7 +11,7 @@
 #include "string.h"
 #include "pcap_payload.h"
 #include "proc.h"
-#include "libndpi-2.3.0/libndpi/ndpi_api.h"
+#include "ndpi_api.h"
 
 #define LY_SRC = 0;
 #define LY_DST = 1;
@@ -21,7 +21,11 @@
 /*
  * the father dic of all packet
  * */
+#if defined(__APPLE__)
+const char file_path[] = "/Users/lee/Desktop/大四/毕业设计/GP_data";
+#elif defined(linux)
 const char file_path[] = "/home/lee/Desktop/GP";
+#endif
 
 const struct packet_total *queue_header = NULL;
 // queue mutex control the access of the queue
@@ -132,8 +136,8 @@ struct packet_total *get_node_from_queue() {
  * after adding the node to the queue, file writing will be handled by the file sys
  * */
 void
-write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char *payload, int length, int protocol,
-              int ip_version) {
+write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char *packet, int payload_length, int protocol,
+              int ip_version, int payload_offset) {
     char *src, *dst = NULL;
     src = (char *) malloc(sizeof(char) * (strlen(src_ip) + 20));
     dst = (char *) malloc(sizeof(char) * (strlen(dst_ip) + 20));
@@ -141,19 +145,20 @@ write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, 
     sprintf(src, "%s-%d", src_ip, ntohs(src_port));
     sprintf(dst, "%s-%d", dst_ip, ntohs(dst_port));
 
-    char *pl = (char *) malloc(sizeof(char) * length);
-    printf("length: %d\t, pl_length:%d\n", length, (int) sizeof(char) * length);
-//    strncpy(pl, payload, (size_t) length);
-    for (int i = 0; i < length; ++i) {
-        char vc = payload[i];
+    char *pl = (char *) malloc(sizeof(char) * payload_length);
+
+//	copy the payload to pl, in order to create the node
+    for (int i = 0; i < payload_length; ++i) {
+        char vc = packet[i + payload_offset];
         pl[i] = vc;
     }
 
-    struct packet_total *ptr = init_node(src, dst, pl, length, protocol, ip_version);
+    struct packet_total *ptr = init_node(src, dst, pl, payload_length, protocol, ip_version);
 
     //add to queue;
     add_node_to_queue(ptr);
-    printf("\nnode added!!!!!!\n");
+
+git st
 }
 
 
@@ -289,6 +294,7 @@ void *file_sys(void *arg) {
         if (ptr != NULL) {
 
             write_file(ptr);
+
             delete_node(ptr);
             printf("node deleted===============\n");
         } else {

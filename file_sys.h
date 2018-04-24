@@ -30,8 +30,8 @@ struct packet_total{
 	struct packet_total * next_node;
 };
 
-void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char * payload, int length, int protocol,
-                   int ip_version);
+void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, char *packet, int payload_length, int protocol,
+				   int ip_version, int payload_offset);
 
 void init_file_sys();
 

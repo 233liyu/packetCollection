@@ -153,7 +153,7 @@ write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, 
         pl[i] = vc;
     }
 
-    struct packet_total *ptr = init_node(src, dst, pl, payload_length, protocol, ip_version);
+    struct packet_total *ptr = init_node(src, dst, pl, payload_length, protocol, ip_version);\
 
     //add to queue;
     add_node_to_queue(ptr);

@@ -150,6 +150,12 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
      * Print payload data; it might be binary, so don't just
      * treat it as a string.
      */
+
+
+	char * index = create_grand_index(src_ip, dst_ip, ports.src_port, ports.des_port, protocol,IP_version);
+
+
+
     if (payload_size > 0) {
         printf("   Payload (%d bytes):\n", payload_size);
 //		print_payload((u_char *)payload, payload_size);

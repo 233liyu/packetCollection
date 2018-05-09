@@ -3,9 +3,11 @@
 //
 
 #include <stdlib.h>
+#include <pcap.h>
 #include "ndpi_detection.h"
 #include "ndpi_main.h"
 #include "ndpi_api.h"
+#include "ndpi_define.h"
 #include "file_sys.h"
 
 pthread_mutex_t packet_queue_mtx = PTHREAD_MUTEX_INITIALIZER;
@@ -28,7 +30,25 @@ struct dpi_struct_t{
 };
 
 
-/*
+/**
+ * @brief malloc wrapper function
+ */
+static void *malloc_wrapper(size_t size) {
+	return malloc(size);
+}
+
+/* ***************************************************** */
+
+/**
+ * @brief free wrapper function
+ */
+static void free_wrapper(void *freeable) {
+	free(freeable);
+}
+
+/* ***************************************************** */
+
+/**
  * add a node into the queue for further usage
  * */
 void add_node_to_queue(struct packet_total *node) {
@@ -61,7 +81,7 @@ void add_node_to_queue(struct packet_total *node) {
 
 }
 
-/*
+/**
  * return the first node in the queue, and return null if the queue is empty
  * */
 struct packet_total *get_node_from_queue() {
@@ -80,11 +100,11 @@ struct packet_total *get_node_from_queue() {
 }
 
 
-/*
+/**
  * the main thread of the queue control
  * cope with getting packet from the queue
  * */
-void *file_sys(void *arg) {
+void *process_queue(void *arg) {
 	struct packet_total *ptr = NULL;
 	while (1) {
 
@@ -105,29 +125,144 @@ void *file_sys(void *arg) {
 	return NULL;
 }
 
+/**
+ * initializing the ndpi work flow
+ * */
+
+struct ndpi_workflow * ndpi_workflow_init(const struct ndpi_workflow_prefs * prefs, pcap_t * pcap_handle) {
+	int nDPI_LogLevel = 0;
+
+	set_ndpi_malloc(malloc_wrapper);
+	set_ndpi_free(free_wrapper);
+	set_ndpi_flow_malloc(NULL);
+	set_ndpi_flow_free(NULL);
+
+	/* TODO: just needed here to init ndpi malloc wrapper */
+	struct ndpi_detection_module_struct * module = ndpi_init_detection_module();
+
+	struct ndpi_workflow * workflow = ndpi_calloc(1, sizeof(struct ndpi_workflow));
+
+	workflow->pcap_handle = pcap_handle;
+	workflow->ndpi_struct = module;
+
+	if(workflow->ndpi_struct == NULL) {
+		exit(-1);
+	}
+
+	module->ndpi_log_level = nDPI_LogLevel;
 
 
+	workflow->ndpi_flows_root = ndpi_calloc(workflow->prefs.num_roots, sizeof(void *));
 
-struct dpi_struct_t *init_dpi(dpi_server_config_t config, char *errbuf) {
-	struct dpi_struct_t *dpi_struct = (struct dpi_struct_t *) malloc(sizeof(struct dpi_struct_t));
-	if (dpi_struct == NULL) {
-		snprintf(errbuf, BUFSIZ, "not enough memory");
-		return NULL;
-	}
-	dpi_struct->ndpi_struct = ndpi_init_detection_module();
-	if (dpi_struct->ndpi_struct == NULL) {
-		snprintf(errbuf, BUFSIZ, "init ndpi error");
-		dpi_free(dpi_struct);
-		return NULL;
-	}
-	NDPI_PROTOCOL_BITMASK all;
-	NDPI_BITMASK_SET_ALL(all);
-	//去掉不需要的协议
-	NDPI_BITMASK_DEL(all, NDPI_PROTOCOL_FTP_DATA);
-	NDPI_BITMASK_DEL(all, NDPI_PROTOCOL_FTP_CONTROL);
-	ndpi_set_protocol_detection_bitmask2(dpi_struct->ndpi_struct, &all);
-	if (config.proto_file_path != NULL) {
-		ndpi_load_protocols_file(dpi_struct->ndpi_struct, config.proto_file_path);
-	}
-	return dpi_struct;
+	return workflow;
 }
+
+
+
+struct dpi_session * get_ndpi_session(char * key){
+
+}
+
+
+/**
+   Function to process the packet:
+   determine the flow of a packet and try to decode it
+   @return: 0 if success; else != 0
+
+   @Note: ipsize = header->len - ip_offset ; rawsize = header->len
+*/
+static struct ndpi_proto packet_processing(struct ndpi_workflow * workflow,
+										   const u_int64_t time,
+										   u_int16_t vlan_id,
+										   const struct ndpi_iphdr *iph,
+										   struct ndpi_ipv6hdr *iph6,
+										   u_int16_t ip_offset,
+										   u_int16_t ipsize, u_int16_t rawsize) {
+	struct ndpi_id_struct *src, *dst;
+	struct ndpi_flow_info *flow = NULL;
+	struct ndpi_flow_struct *ndpi_flow = NULL;
+	u_int8_t proto;
+	struct ndpi_tcphdr *tcph = NULL;
+	struct ndpi_udphdr *udph = NULL;
+	u_int16_t sport, dport, payload_len;
+	u_int8_t *payload;
+	u_int8_t src_to_dst_direction = 1;
+	struct ndpi_proto nproto = { NDPI_PROTOCOL_UNKNOWN, NDPI_PROTOCOL_UNKNOWN };
+
+	if(iph)
+		flow = get_ndpi_flow_info(workflow, IPVERSION, vlan_id, iph, NULL,
+								  ip_offset, ipsize,
+								  ntohs(iph->tot_len) - (iph->ihl * 4),
+								  &tcph, &udph, &sport, &dport,
+								  &src, &dst, &proto,
+								  &payload, &payload_len, &src_to_dst_direction);
+	else
+		flow = get_ndpi_flow_info6(workflow, vlan_id, iph6, ip_offset,
+								   &tcph, &udph, &sport, &dport,
+								   &src, &dst, &proto,
+								   &payload, &payload_len, &src_to_dst_direction);
+
+	if(flow != NULL) {
+		workflow->stats.ip_packet_count++;
+		workflow->stats.total_wire_bytes += rawsize + 24 /* CRC etc */,
+				workflow->stats.total_ip_bytes += rawsize;
+		ndpi_flow = flow->ndpi_flow;
+
+		if(src_to_dst_direction)
+			flow->src2dst_packets++, flow->src2dst_bytes += rawsize;
+		else
+			flow->dst2src_packets++, flow->dst2src_bytes += rawsize;
+
+		flow->last_seen = time;
+	} else { // flow is NULL
+		workflow->stats.total_discarded_bytes++;
+		return(nproto);
+	}
+
+	/* Protocol already detected */
+	if(flow->detection_completed) {
+		if(flow->check_extra_packets && ndpi_flow != NULL && ndpi_flow->check_extra_packets) {
+			if(ndpi_flow->num_extra_packets_checked == 0 && ndpi_flow->max_extra_packets_to_check == 0) {
+				/* Protocols can set this, but we set it here in case they didn't */
+				ndpi_flow->max_extra_packets_to_check = MAX_EXTRA_PACKETS_TO_CHECK;
+			}
+			if(ndpi_flow->num_extra_packets_checked < ndpi_flow->max_extra_packets_to_check) {
+				ndpi_process_extra_packet(workflow->ndpi_struct, ndpi_flow,
+										  iph ? (uint8_t *)iph : (uint8_t *)iph6,
+										  ipsize, time, src, dst);
+				if (ndpi_flow->check_extra_packets == 0) {
+					flow->check_extra_packets = 0;
+					process_ndpi_collected_info(workflow, flow);
+				}
+			}
+		} else if (ndpi_flow != NULL) {
+			/* If this wasn't NULL we should do the half free */
+			/* TODO: When half_free is deprecated, get rid of this */
+			ndpi_free_flow_info_half(flow);
+		}
+
+		return(flow->detected_protocol);
+	}
+
+	flow->detected_protocol = ndpi_detection_process_packet(workflow->ndpi_struct, ndpi_flow,
+															iph ? (uint8_t *)iph : (uint8_t *)iph6,
+															ipsize, time, src, dst);
+
+	if((flow->detected_protocol.app_protocol != NDPI_PROTOCOL_UNKNOWN)
+	   || ((proto == IPPROTO_UDP) && ((flow->src2dst_packets + flow->dst2src_packets) > 8))
+	   || ((proto == IPPROTO_TCP) && ((flow->src2dst_packets + flow->dst2src_packets) > 10))) {
+		/* New protocol detected or give up */
+		flow->detection_completed = 1;
+		/* Check if we should keep checking extra packets */
+		if (ndpi_flow->check_extra_packets)
+			flow->check_extra_packets = 1;
+
+		if(flow->detected_protocol.app_protocol == NDPI_PROTOCOL_UNKNOWN)
+			flow->detected_protocol = ndpi_detection_giveup(workflow->ndpi_struct,
+															flow->ndpi_flow);
+		process_ndpi_collected_info(workflow, flow);
+	}
+
+	return(flow->detected_protocol);
+}
+

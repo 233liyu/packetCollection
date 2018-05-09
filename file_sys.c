@@ -13,10 +13,7 @@
 #include "proc.h"
 #include "ndpi_api.h"
 
-#define LY_SRC = 0;
-#define LY_DST = 1;
-#define LY_BDC = 2;
-
+#define INDEX_SIZE = 120;
 
 /*
  * the father dic of all packet
@@ -132,6 +129,58 @@ struct packet_total *get_node_from_queue() {
 
 
 /*
+ * get the name of the file
+ * create a unique file name for the grand use
+ * */
+void create_file_name(char * src_add, char * dst_add, int protocol, char *bufffer) {
+//	"src-port*dst-port*TCP"
+//   start with local address
+	if (is_local_ip(src_add)){
+//        if the local address is the source address
+		if (protocol == LY_TCP){
+			sprintf(bufffer,"%s*%s*TCP",src_add,dst_add);
+		} else {
+			sprintf(bufffer,"%s*%s*UDP",src_add,dst_add);
+		}
+
+	} else if (is_local_ip(dst_add)){
+//        if the local address is the destination address
+		if (protocol == LY_TCP){
+			sprintf(bufffer,"%s*%s*TCP",dst_add,src_add);
+		} else {
+			sprintf(bufffer,"%s*%s*UDP",dst_add,src_add);
+		}
+	} else {
+//        the packet is a broadcast message
+		if (protocol == LY_TCP){
+			sprintf(bufffer,"%s*%s*TCP",src_add,dst_add);
+		} else {
+			sprintf(bufffer,"%s*%s*UDP",src_add,dst_add);
+		}
+	}
+}
+
+/**
+ * invoke the create_file_name function to create a grand index for system use
+ * */
+char * create_grand_index(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, int protocol, int ip_version){
+	char *src, *dst = NULL;
+	src = (char *) malloc(sizeof(char) * (strlen(src_ip) + 20));
+	dst = (char *) malloc(sizeof(char) * (strlen(dst_ip) + 20));
+
+	sprintf(src, "%s-%d", src_ip, ntohs(src_port));
+	sprintf(dst, "%s-%d", dst_ip, ntohs(dst_port));
+
+	char *index_buffer = (char *) malloc(INDEX_SIZE);
+	create_file_name(src, dst, protocol, index_buffer);
+
+	free(src);
+	free(dst);
+	return index_buffer;
+}
+
+
+/*
  * exposed interface to main.c to provide basic info of the packet
  * after adding the node to the queue, file writing will be handled by the file sys
  * */
@@ -153,7 +202,7 @@ write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, 
         pl[i] = vc;
     }
 
-    struct packet_total *ptr = init_node(src, dst, pl, payload_length, protocol, ip_version);\
+    struct packet_total *ptr = init_node(src, dst, pl, payload_length, protocol, ip_version);
 
     //add to queue;
     add_node_to_queue(ptr);
@@ -174,37 +223,6 @@ void init_file_sys() {
 }
 
 
-/*
- * get the name of the file
- * create a unique file name for the grand use
- * */
-void create_file_name(struct packet_total *ptr, char *bufffer) {
-//	"src-port*dst-port*TCP"
-//   start with local address
-    if (is_local_ip(ptr->src_add)){
-//        if the local address is the source address
-        if (ptr->protocol == LY_TCP){
-            sprintf(bufffer,"%s*%s*TCP",ptr->src_add,ptr->dst_add);
-        } else {
-            sprintf(bufffer,"%s*%s*UDP",ptr->src_add,ptr->dst_add);
-        }
-
-    } else if (is_local_ip(ptr->dst_add)){
-//        if the local address is the destination address
-        if (ptr->protocol == LY_TCP){
-            sprintf(bufffer,"%s*%s*TCP",ptr->dst_add,ptr->src_add);
-        } else {
-            sprintf(bufffer,"%s*%s*UDP",ptr->dst_add,ptr->src_add);
-        }
-    } else {
-//        the packet is a broadcast message
-        if (ptr->protocol == LY_TCP){
-            sprintf(bufffer,"%s*%s*TCP",ptr->src_add,ptr->dst_add);
-        } else {
-            sprintf(bufffer,"%s*%s*UDP",ptr->src_add,ptr->dst_add);
-        }
-    }
-}
 
 void write_processInfo(char * file_name, char * ip_info, int ip_version){
     char result [10240] = "";
@@ -235,7 +253,7 @@ void init_file(struct packet_total *ptr, char * file_name) {
     char total_buffer[2048] = "";
     char date_buffer[50] = "";
 
-    create_file_name(ptr,name_buffer);
+    create_file_name(ptr->src_add, ptr->dst_add, ptr->protocol ,name_buffer);
     get_date(date_buffer);
 
     sprintf(total_buffer,"%s/%s",file_path,date_buffer);

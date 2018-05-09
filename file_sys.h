@@ -36,3 +36,5 @@ void write_to_file(char src_ip[], char dst_ip[], u_short src_port, u_short dst_p
 void init_file_sys();
 
 void * file_sys(void * arg);
+
+char * create_grand_index(char src_ip[], char dst_ip[], u_short src_port, u_short dst_port, int protocol, int ip_version);

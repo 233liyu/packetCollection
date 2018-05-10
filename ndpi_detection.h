@@ -7,6 +7,7 @@
 
 #endif //LIBPCAP_NDPI_DETECTION_H
 
+#define MAX_EXTRA_PACKETS_TO_CHECK  7
 
 
 struct ndpi_packet{
@@ -22,6 +23,7 @@ struct ndpi_packet{
 	int protocol;
 	// session key
 	char * session_key;
+	u_int64_t packet_count;
 	int payload_length;
 
 	struct ndpi_packet * next_node;

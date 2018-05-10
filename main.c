@@ -1,41 +1,3 @@
-/* ****************************************************************************
- *
- * Code Comments
- *
- * This section contains additional information and explanations regarding
- * comments in the source code. It serves as documentaion and rationale
- * for why the code is written as it is without hindering readability, as it
- * might if it were placed along with the actual code inline. References in
- * the code appear as footnote notation (e.g. [1]).
- *
- * 1. Ethernet headers are always exactly 14 bytes, so we define this
- * explicitly with "#define". Since some compilers might pad structures to a
- * multiple of 4 bytes - some versions of GCC for ARM may do this -
- * "sizeof (struct sniff_ethernet)" isn't used.
- *
- * 2. Check the link-layer type of the device that's being opened to make
- * sure it's Ethernet, since that's all we handle in this example. Other
- * link-layer types may have different length headers (see [1]).
- *
- * 3. This is the filter expression that tells libpcap which packets we're
- * interested in (i.e. which packets to capture). Since this source example
- * focuses on IP and TCP, we use the expression "ip", so we know we'll only
- * encounter IP packets. The capture filter syntax, along with some
- * examples, is documented in the tcpdump man page under "expression."
- * Below are a few simple examples:
- *
- * Expression			Description
- * ----------			-----------
- * ip					Capture all IP packets.
- * tcp					Capture only TCP packets.
- * tcp port 80			Capture only TCP packets with a port equal to 80.
- * ip host 10.1.2.3		Capture all IP packets to or from host 10.1.2.3.
- *
- ****************************************************************************
- *
- */
-
-
 #include <pcap.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +11,7 @@
 #include <pthread.h>
 #include "pcap_payload.h"
 #include "file_sys.h"
+#include "ndpi_detection.h"
 
 
 void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *packet);
@@ -154,6 +117,8 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 
 	char * index = create_grand_index(src_ip, dst_ip, ports.src_port, ports.des_port, protocol,IP_version);
 
+	run_ndpi_detection((char *)packet, SIZE_ETHERNET + ip_hsize, SIZE_ETHERNET + ip_hsize + tu_header_size, IP_version,
+					   protocol, index, payload_size);
 
 
     if (payload_size > 0) {

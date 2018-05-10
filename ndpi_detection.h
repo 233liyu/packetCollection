@@ -9,23 +9,23 @@
 
 
 
-// workflow main structure
-typedef struct ndpi_workflow {
-	u_int64_t last_time;
+struct ndpi_packet{
+	// initial packet from libpcap
+	char * ip_packet;
+	// ip header offset from the packet
+	int iphd_offset;
+	// payload offset from the packet header
+	int payload_offset;
+	// ipv4 / ipv6
+	int ip_version;
+	// TCP / UDP
+	int protocol;
+	// session key
+	char * session_key;
+	int payload_length;
 
-	struct ndpi_workflow_prefs prefs;
-	struct ndpi_stats stats;
+	struct ndpi_packet * next_node;
+};
 
-	ndpi_workflow_callback_ptr __flow_detected_callback;
-	void * __flow_detected_udata;
-	ndpi_workflow_callback_ptr __flow_giveup_callback;
-	void * __flow_giveup_udata;
-
-	/* outside referencies */
-	pcap_t *pcap_handle;
-
-	/* allocated by prefs */
-	void **ndpi_flows_root;
-	struct ndpi_detection_module_struct *ndpi_struct;
-	u_int32_t num_allocated_flows;
-} ndpi_workflow_t;
+void run_ndpi_detection(char * ip_packet, int iphd_offset, int payload_offset,
+						int ip_version, int protocol, char * session_key, int payload_length);

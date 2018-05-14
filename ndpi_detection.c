@@ -225,6 +225,10 @@ void ndpi_workflow_init() {
 
 	work_system = ndpi_sys;
 
+	// enable all protocols
+	NDPI_PROTOCOL_BITMASK all;
+	NDPI_BITMASK_SET_ALL(all);
+	ndpi_set_protocol_detection_bitmask2(work_system->detection_module, &all);
 
 
 }

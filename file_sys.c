@@ -11,9 +11,8 @@
 #include "string.h"
 #include "pcap_payload.h"
 #include "proc.h"
-#include "ndpi_api.h"
 
-#define INDEX_SIZE = 120;
+#define INDEX_SIZE 120
 
 /*
  * the father dic of all packet
@@ -27,8 +26,8 @@ const char file_path[] = "/home/lee/Desktop/GP";
 const struct packet_total *queue_header = NULL;
 // queue mutex control the access of the queue
 pthread_mutex_t queue_mutex = PTHREAD_MUTEX_INITIALIZER;
-// cond
-pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+// pthread_cond
+pthread_cond_t pthread_cond = PTHREAD_COND_INITIALIZER;
 pthread_mutex_t con_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /*
@@ -62,12 +61,13 @@ struct packet_total *init_node(char *src, char *dst, char *payload, int length, 
     ptr->length = length;
     ptr->protocol = protocol;
     ptr->ip_version = version;
-
-    printf("debug: \n"
-                   "create node : \n"
-                   "src: %s\t dst: %s\n"
-                   "payload size: %d",
-           ptr->src_add, ptr->dst_add, ptr->length);
+#ifdef FILE_SYS_DEBUG
+//    printf("debug: \n"
+//                   "create node : \n"
+//                   "src: %s\t dst: %s\n"
+//                   "payload size: %d",
+//           ptr->src_add, ptr->dst_add, ptr->length);
+#endif
     return ptr;
 }
 
@@ -96,14 +96,14 @@ void add_node_to_queue(struct packet_total *node) {
         ptr->next_node = node;
 //		unlock the mutex
         pthread_mutex_unlock(&queue_mutex);
-        pthread_cond_broadcast(&cond);
+        pthread_cond_broadcast(&pthread_cond);
         return;
     } else {
 //		queue is empty
         queue_header = node;
 //		unlock the mutex
         pthread_mutex_unlock(&queue_mutex);
-        pthread_cond_broadcast(&cond);
+        pthread_cond_broadcast(&pthread_cond);
         return;
     }
 
@@ -222,7 +222,35 @@ void init_file_sys() {
     return;
 }
 
+void write_ndpi_protocol(char * name_key, char * ms_proto, char * app_proto){
+	FILE * fp = NULL;
 
+	char date_buffer [20] = "";
+	char total_buffer [1024] = "";
+	char * name_buffer = "ndpi_result.txt";
+	get_date(date_buffer);
+	sprintf(total_buffer,"%s/%s",file_path,date_buffer);
+
+	if (access(total_buffer,F_OK)){
+//        dic not exist!
+		if (mkdir(total_buffer,0777) == 0){
+			printf("dic %s created!\n", total_buffer);
+		} else {
+			printf("error creating file dic %s\n", total_buffer);
+		}
+	}
+	strcat(total_buffer,"/");
+	strcat(total_buffer,name_buffer);
+
+	fp = fopen(total_buffer,"a+");
+	if (fp == NULL){
+		printf("error opening file %s\n", total_buffer);
+	} else {
+		fprintf(fp, "%s\t%s\t%s\n",name_key, ms_proto,app_proto);
+
+		fclose(fp);
+	}
+}
 
 void write_processInfo(char * file_name, char * ip_info, int ip_version){
     char result [10240] = "";
@@ -314,14 +342,16 @@ void *file_sys(void *arg) {
             write_file(ptr);
 
             delete_node(ptr);
-            printf("node deleted===============\n");
+#ifdef FILE_SYS_DEBUG
+			printf("node deleted===============\n");
+#endif
         } else {
 //			the queue is empty
 //			if wait for more than 1 second, thread will be waken
             struct timespec tim;
             tim.tv_sec = 1;
             tim.tv_nsec = 0;
-            pthread_cond_timedwait(&cond, &con_mutex, &tim);
+            pthread_cond_timedwait(&pthread_cond, &con_mutex, &tim);
         }
     }
 //		break

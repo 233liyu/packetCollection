@@ -36,7 +36,7 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
     int protocol = 0;
 
 
-    printf("\n\nPacket number %d:\n", count);
+//    printf("\n\nPacket number %d:\n", count);
     count++;
 
     /* define ethernet header */
@@ -77,12 +77,13 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
         case LY_TCP:
             protocol = LY_TCP;
             payload_size = TCP_payload_size((u_char *) ip);
-            printf("TCP payload size : %d\n", payload_size);
             tu_header_size = TCP_header_size((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
-            printf("TCP header length :  %d\n", tu_header_size);
-            print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
-
-            tcp = (struct TCP_header *) (packet + SIZE_ETHERNET + ip_hsize);
+#ifdef PACKET_DEBUG
+			printf("TCP payload size : %d\n", payload_size);
+			printf("TCP header length :  %d\n", tu_header_size);
+			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+#endif
+			tcp = (struct TCP_header *) (packet + SIZE_ETHERNET + ip_hsize);
 
             if (tu_header_size < 20) {
                 printf("   * Invalid TCP header length: %u bytes\n", tu_header_size);
@@ -93,10 +94,13 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
         case LY_UDP:
             protocol = LY_UDP;
             payload_size = UDP_payload_size((u_char *) ip);
-            printf("UDP payload size : %d\n", payload_size);
             tu_header_size = 8;
-            print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
-            get_port((u_char *) (packet + SIZE_ETHERNET + ip_hsize), (struct bw_port *) &ports);
+			get_port((u_char *) (packet + SIZE_ETHERNET + ip_hsize), (struct bw_port *) &ports);
+
+#ifdef PACKET_DEBUG
+			printf("UDP payload size : %d\n", payload_size);
+			print_ports((u_char *) (packet + SIZE_ETHERNET + ip_hsize));
+#endif
             break;
         default:
             // do not handle other protocol and forget about the tunnelling or ip in ip encapsulation
@@ -117,13 +121,17 @@ void call_back(u_char *args, const struct pcap_pkthdr *header, const u_char *pac
 
 	char * index = create_grand_index(src_ip, dst_ip, ports.src_port, ports.des_port, protocol,IP_version);
 
-	run_ndpi_detection((char *)packet, SIZE_ETHERNET + ip_hsize, SIZE_ETHERNET + ip_hsize + tu_header_size, IP_version,
-					   protocol, index, payload_size);
+	run_ndpi_detection((char *)packet, ip_hsize, tu_header_size, IP_version,
+					   protocol, index, payload_size, header->caplen);
 
 
     if (payload_size > 0) {
-        printf("   Payload (%d bytes):\n", payload_size);
-//		print_payload((u_char *)payload, payload_size);
+
+#ifdef PACKET_DEBUG
+		printf("   Payload (%d bytes):\n", payload_size);
+		print_payload((u_char *)payload, payload_size);
+#endif
+
         write_to_file(src_ip, dst_ip, ports.src_port, ports.des_port, (char *) packet, payload_size, protocol,
                       IP_version, SIZE_ETHERNET + ip_hsize + tu_header_size);
     }
@@ -200,7 +208,7 @@ int main(int argc, char **argv) {
         exit(EXIT_FAILURE);
     }
 
-    /*
+    /**
      * set up the file writing thread
      * start 1 threads by default
      *
@@ -216,7 +224,15 @@ int main(int argc, char **argv) {
     }
 
 
-    /* now we can set our callback function */
+	ndpi_workflow_init();
+
+	pthread_t *ndpi_thread = NULL;
+	ndpi_thread = (pthread_t *) malloc(sizeof(pthread_t) );
+	pthread_create(ndpi_thread, NULL, process_queue, NULL);
+
+
+
+	/* now we can set our callback function */
     pcap_loop(handle, -1, call_back, NULL);
 
 

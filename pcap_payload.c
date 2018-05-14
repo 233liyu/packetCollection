@@ -122,7 +122,7 @@ int ip_version(u_char * packet){
 /*
  * return the size of the ip headers, in order to count the offset of ip payload
  * return 0 for error, ipv6 header length is fixed
- * ignore the tunnelling \
+ * ignore the tunnelling
  * */
 int ip_header_size(u_char * packet){
 	int ip_ver = 0;
@@ -207,23 +207,31 @@ void print_ip_add(u_char * ip_packet, char * src_ip, char * dst_ip){
 			ipv4 = (struct ipv4_header *)ip_packet;
 			/* print source and destination IP addresses */
 			if(inet_ntop(AF_INET, &ipv4->ip_src, str, sizeof (str))){
-				printf("       From: %s\n", str);
 				sprintf(src_ip,"%s",str);
+#ifdef PACKET_DEBUG
+				printf("       From: %s\n", str);
+#endif
 			}
 			if(inet_ntop(AF_INET, &ipv4->ip_dst, str, sizeof (str))){
-				printf("         To: %s\n", str);
 				sprintf(dst_ip,"%s",str);
+#ifdef PACKET_DEBUG
+				printf("         To: %s\n", str);
+#endif
 			}
 			break;
 		case LY_ipv6:
 			ipv6 = (struct ipv6_header *)ip_packet;
 			if(inet_ntop(AF_INET6, &ipv6->ip_src, str, sizeof (str))){
-				printf("       From: %s\n", str);
 				sprintf(src_ip,"%s",str);
+#ifdef PACKET_DEBUG
+				printf("       From: %s\n", str);
+#endif
 			}
 			if(inet_ntop(AF_INET6, &ipv6->ip_dst, str, sizeof (str))){
-				printf("         To: %s\n", str);
 				sprintf(dst_ip,"%s",str);
+#ifdef PACKET_DEBUG
+				printf("       From: %s\n", str);
+#endif
 			}
 			break;
 		default:
